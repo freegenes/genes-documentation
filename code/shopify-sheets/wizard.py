@@ -274,8 +274,10 @@ def updateGeneTableForProduct(client, shopify, product, productGenes):
                                  na_rep="", formatters={
             "NCBI ID": lambda id: f"<a target='_NCBI' href='https://www.ncbi.nlm.nih.gov/protein/{id}'>{id}</a>"})
 
-    product.body_html = re.sub(f"{geneStart}.*?{geneEnd}", geneStart + table + geneEnd, product.body_html,
+    ending = f"<br/> Download all of this information as <a href='https://github.com/freegenes/freegenes.github.io/raw/master/product-csvs/{product.id}.csv' download>a CSV from our GitHub</a>."
+    product.body_html = re.sub(f"{geneStart}.*?{geneEnd}", geneStart + table + ending + geneEnd, product.body_html,
                                flags=re.DOTALL)
+    product.save()
     return product
 
 
@@ -294,7 +296,8 @@ def updateCanaryFlagForProduct(client, shopify, product, productGenes):
 
 def updateBionetTableForProduct(client, shopify, product, productGenes):
     bionetStart = "<!--START:BIONET_DISTS-->"
-    bionetEnd = "<!--END:BIONET_DISTS-->"
+    bionetEnding = f"<br/> Download all of this information as <a href='https://github.com/freegenes/freegenes.github.io/raw/master/product-csvs/{product.id}.csv'>a CSV from our GitHub</a>."
+    bionetEnd = f"<!--END:BIONET_DISTS-->"
 
     bionetText = "<p>The bionet enables open peer-peer exchange of functional biomaterials and associated data.</p>" + \
                  "<p>This product may also be available from bionet nodes that are more convenient to you.</p>"
@@ -317,13 +320,15 @@ def updateBionetTableForProduct(client, shopify, product, productGenes):
         df.Contact = df.Contact.apply(link)
         text = df.to_html(index=False, index_names=False, header=True, escape=False)
         #print(f"Found other bionet nodes for {row['title']}")
-        bionetText = bionetStart + text
+        bionetText = text
     else:
-        bionetText = bionetStart + "<p>At the moment we are not aware of any other bionet nodes that provide this specific product.</p>"
+        bionetText = "<p>At the moment we are not aware of any other bionet nodes that provide this specific product.</p>"
 
     product.body_html = re.sub(f"{bionetStart}.*?{bionetEnd}", bionetStart + bionetText
-                               + bionetEnd,
+                               + bionetEnding + bionetEnd,
                                product.body_html, flags=re.DOTALL)
+    status = product.save()
+    #updateProductPage(client, product)
     return product
 
 
@@ -390,12 +395,17 @@ bionet = weaveBionet(client, orders)
 client.chat_postMessage(channel=channel,
                         text=f"Now that I have _all that data_, let me do something useful. How about I make some tables? ;)")
 
+def generateProductCSV(product, geneList, genes):
+    productGenes = genes[genes.id.isin(geneList)]
+    productGenes.to_csv(f"./../../product-csvs/{product.id}.csv")
+
 productGenes = getProductGenes(client, shopifyData, collections, packaging)
 for product, geneList in productGenes:
     updatedProduct = product
     for func in [updateGeneTableForProduct, updateBionetTableForProduct, updateCanaryFlagForProduct, updateBionetTableForProduct]:
         updatedProduct = func(client, shopify, updatedProduct, genes[genes.id.isin(geneList)])
     updateProductPage(client, updatedProduct)
+    generateProductCSV(product, geneList, genes)
 
 
 generateTradingCards(client, genes)

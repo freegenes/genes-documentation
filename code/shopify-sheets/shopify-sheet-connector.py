@@ -110,7 +110,7 @@ client.chat_postMessage(channel=channel, text=f"(and while we're here, let's aut
 
 
 pushGeneInfo = allGeneInfo.copy()
-pushGeneInfo["row-hash"] = allGeneInfo.apply(lambda row: sha1("---".join([str(row[x]) for x in allGeneInfo.columns if not x=="row_hash"]).encode()).hexdigest()[0:8], axis=1)
+pushGeneInfo["row-hash"] = allGeneInfo.apply(lambda row: sha1("---".join([str(row[x]) for x in allGeneInfo.columns if not x=="row-hash"]).encode()).hexdigest()[0:8], axis=1)
 try:
     updateSheet(pushGeneInfo.applymap(str).replace("None", ""), SPREADSHEET_ID, "Genes")
 except socket.timeout:
@@ -142,7 +142,7 @@ for o in orders:
             if not l.attributes["product_id"] in bionet.keys():
                 bionet[l.attributes["product_id"]] = []
             bionet[l.attributes["product_id"]] = list(set(bionet[l.attributes["product_id"]] + [info]))
-print(bionet)
+#print(bionet)
 
 
 client.chat_postMessage(channel=channel,
@@ -204,9 +204,8 @@ for i, row in df.iterrows():
 
     geneInfo = allGeneInfo[allGeneInfo["id"].isin(genes)]
     if all(geneInfo["changed"]):
+        print(f"Skipping update for {row['title']} because there are no changes")
         continue
-        if geall(neInfo["changed"]):
-            continue
 
     geneStart = "<!--START:GENES-->"
     geneEnd = "<!--END:GENES-->"

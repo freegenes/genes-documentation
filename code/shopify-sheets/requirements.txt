@@ -1,0 +1,11 @@
+numpy==1.19.4
+pandas==1.2.0
+requests==2.25.1
+bleach==3.2.1
+tqdm==4.54.1
+ShopifyAPI==8.2.0
+pyactiveresource==2.2.1
+google_api_python_client==1.12.8
+google_auth_oauthlib==0.4.2
+protobuf==3.14.0
+slackclient==2.9.3
