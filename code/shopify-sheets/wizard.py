@@ -42,7 +42,8 @@ def initilize(client):
 
     settings = getSheet(SPREADSHEET_ID, "Wizard Settings", useFirstRowAsCols=True)
     d = settings.to_dict()
-    settings = {d["Option"][i]: d["Value"][i] if not d["Value"][i] in ["TRUE", "FALSE"] else bool(d["Value"][i]) for i in d["Option"].keys()}
+    settings = {d["Option"][i]: d["Value"][i] if not d["Value"][i] in ["TRUE", "FALSE"] else d["Value"][i]=="TRUE" for i in d["Option"].keys()}
+    print(d, settings)
     return settings
 
 def heatmap(client):
@@ -166,6 +167,7 @@ def generateTradingCards(client, genes):
     print("Generating trading cards... :baseball:")
     client.chat_postMessage(channel=channel, text="Generating trading cards... :baseball:")
     genbankErrors = 0
+    errors = []
     for i, gene in tradingCardGeneDf.iterrows():
         geneHtml = template
         for col in genes:
@@ -191,13 +193,23 @@ def generateTradingCards(client, genes):
         if not os.path.isfile(f"../../genbank/{gene['id']}.gb"):
             genbankErrors = genbankErrors + 1
             if genbankErrors < 15:
-                client.chat_postMessage(text=f":interrobang: Writing {gene['id']}.html but can't find a corresponding genbank file! (until this is fixed, there will be no image on the trading card)", channel=channel)
+                client.chat_postMessage(text=f":interrobang: Writing {gene['id']} (from product {gene['product']}) but can't find a corresponding genbank file! (there will be no image on the trading card)", channel=channel)
             print(f"ERROR: Writing {gene['id']}.html but can't find a corresponding genbank file! (until this is fixed, there will be no image on the trading card)")
+            errors.append(gene)
+    productAlerts = {} # product : missing genes
+    for error in errors:
+        if error["product"] in productAlerts:
+            productAlerts[error["product"]] = productAlerts[error["product"]] + 1
+        else:
+            productAlerts[error["product"]] = 1
+    for product in productAlerts:
+        client.chat_postMessage(
+        text=f":sob: There are *{productAlerts[product]}* genbank file(s) missing from product *{product}*",
+        channel=channel)
     if genbankErrors >= 15:
         client.chat_postMessage(
         text=f":loudspeaker: There are {genbankErrors} genbank files that *should* exist, but don't. Please add them to the github when you can",
         channel=channel)
-
 
 def generateSnapgeneImages(client, changed, genes):
     genbanks = os.listdir("./../../genbank")
@@ -355,6 +367,8 @@ def generateAndUploadOrdersReport(client, orders):
     df["items_shipped"] = [", ".join([x.attributes["title"] for x in y]) for y in df["line_items"]]
     sf = df[df["fulfillment_status"] == "fulfilled"][["id", "email", "closed_at", "fulfillment_status", "items_shipped"]+[x for x in df.columns if "shipping" in x and x not in ["total_shipping_price_set", "shipping_lines", "shipping_address"]]].copy()
     sf["closed_at"] = pd.to_datetime(sf["closed_at"], utc=True)
+    shipping_log = "1UK0umObsYydBOWikwDbmG6c_dGC8OllRB4Bi0JGQlwk"
+    updateSheet(sf.applymap(str).replace("None", ""), shipping_log, "Shipping Log")
     export = sf[sf["closed_at"].dt.month == (today.month-1)].copy()
     export['closed_at'] = export['closed_at'].apply(lambda a: pd.to_datetime(a).date())
 
