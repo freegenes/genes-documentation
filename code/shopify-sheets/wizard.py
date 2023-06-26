@@ -361,7 +361,15 @@ def generateAndUploadOrdersReport(client, orders):
     client.chat_postMessage(channel=channel, text=f":eye: :eye: Generating visual compliance report...")
     today = datetime.today()
     df = pd.DataFrame([o.attributes for o in orders])
-    df["shipping_address"] = df["shipping_address"].apply(lambda x: x.attributes)
+    def f(x):
+        try:
+            return x.attributes
+        except AttributeError:
+            d = df["shipping_address"].iloc[0].attributes
+            for key in d.keys():
+                d[key] = None
+            return d
+    df["shipping_address"] = df["shipping_address"].apply(f)
     for key in df["shipping_address"].iloc[0].keys():
         df["shipping_"+key] = df["shipping_address"].apply(lambda x: x[key])
     df["items_shipped"] = [", ".join([x.attributes["title"] for x in y]) for y in df["line_items"]]
