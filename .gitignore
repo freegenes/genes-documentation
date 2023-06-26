@@ -3,4 +3,4 @@
 *.pickle
 *.old
 *.csv
-
+credentials*
